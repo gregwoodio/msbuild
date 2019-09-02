@@ -1929,12 +1929,11 @@ namespace Microsoft.Build.UnitTests
             engine.AssertLogContains("MSB3027");
         }
 
-        [Fact(Skip = "Only run if either UseHardlinksIfPossible or UseSymboliclinksIfPossible is true")]
         [PlatformSpecific(TestPlatforms.Windows)]
-        public virtual void ErrorIfLinkFailedCheck()
+        internal virtual void ErrorIfLinkFailedCheckWindows()
         {
-            string source = FileUtilities.GetTemporaryFile();
-            string destination = FileUtilities.GetTemporaryFile();
+            var source = FileUtilities.GetTemporaryFile();
+            var destination = FileUtilities.GetTemporaryFile();
 
             try
             {
@@ -1971,6 +1970,47 @@ namespace Microsoft.Build.UnitTests
 
                 File.Delete(source);
                 File.Delete(destination);
+            }
+        }
+
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
+        internal virtual void ErrorIfLinkFailedCheckUnix()
+        {
+            var workDirectory = FileUtilities.GetTemporaryDirectory();
+            var source = Path.Combine(workDirectory, "source.txt");
+            var existing = Path.Combine(workDirectory, "existing.txt");
+
+            try
+            {
+                using (StreamWriter sw = FileUtilities.OpenWrite(source, true))
+                {
+                    sw.Write("This is a source file.");
+                }
+
+                using (StreamWriter sw = FileUtilities.OpenWrite(existing, true))
+                {
+                    sw.Write("This is an existing file.");
+                }
+
+                MockEngine engine = new MockEngine(true);
+                Copy t = new Copy
+                {
+                    RetryDelayMilliseconds = 1,
+                    UseHardlinksIfPossible = UseHardLinks,
+                    UseSymboliclinksIfPossible = UseSymbolicLinks,
+                    ErrorIfLinkFails = true,
+                    BuildEngine = engine,
+                    SourceFiles = new ITaskItem[] { new TaskItem(source) },
+                    DestinationFiles = new ITaskItem[] { new TaskItem(existing) },
+                };
+
+                Assert.False(t.Execute());
+                engine.AssertLogContains("MSB3893");
+            }
+            finally
+            {
+                File.Delete(source);
+                File.Delete(existing);
             }
         }
 
@@ -2391,9 +2431,15 @@ namespace Microsoft.Build.UnitTests
         }
 
         [Fact]
-        public override void ErrorIfLinkFailedCheck()
+        internal override void ErrorIfLinkFailedCheckWindows()
         {
-            base.ErrorIfLinkFailedCheck();
+            base.ErrorIfLinkFailedCheckWindows();
+        }
+
+        [Fact]
+        internal override void ErrorIfLinkFailedCheckUnix()
+        {
+            base.ErrorIfLinkFailedCheckUnix();
         }
     }
 
@@ -2486,9 +2532,15 @@ namespace Microsoft.Build.UnitTests
         }
 
         [Fact]
-        public override void ErrorIfLinkFailedCheck()
+        internal override void ErrorIfLinkFailedCheckWindows()
         {
-            base.ErrorIfLinkFailedCheck();
+            base.ErrorIfLinkFailedCheckWindows();
+        }
+
+        [Fact]
+        internal override void ErrorIfLinkFailedCheckUnix()
+        {
+            base.ErrorIfLinkFailedCheckUnix();
         }
     }
 }
